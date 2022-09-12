@@ -1,0 +1,6 @@
+ddhidden_size 100 learning rate: 0.001000 epochs 15.000000 reg 1.000000 lr_decay 0.950000  -- val_acc: 0.516000 
+hidden_size 100 learning rate: 0.005000 epochs 15.000000 reg 1.000000 lr_decay 0.950000  -- val_acc: 0.087000 
+hidden_size 150 learning rate: 0.001000 epochs 15.000000 reg 1.000000 lr_decay 0.950000  -- val_acc: 0.520000 
+hidden_size 150 learning rate: 0.005000 epochs 15.000000 reg 1.000000 lr_decay 0.950000  -- val_acc: 0.087000 
+hidden_size 200 learning rate: 0.001000 epochs 15.000000 reg 1.000000 lr_decay 0.950000  -- val_acc: 0.519000 
+hidden_size 200 learning rate: 0.005000 epochs 15.000000 reg 1.000000 lr_decay 0.950000  -- val_acc: 0.087000 

@@ -1,0 +1,4 @@
+*.zip
+*datasets*
+*.npz
+*__pycache*
