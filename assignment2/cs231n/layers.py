@@ -27,7 +27,7 @@ def affine_forward(x, w, b):
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
     pass
-    t = x.reshape(x.shape[0],-1)
+    t = x.reshape(x.shape[0], -1)
     out = t.dot(w)+b
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -35,6 +35,7 @@ def affine_forward(x, w, b):
     ###########################################################################
     cache = (x, w, b)
     return out, cache
+
 
 def affine_backward(dout, cache):
     """Computes the backward pass for an affine (fully connected) layer.
@@ -58,8 +59,8 @@ def affine_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     dx = dout.dot(w.T)
-    dx = dx.reshape(x.shape[0],*x.shape[1:])
-    t = x.reshape(x.shape[0],-1)
+    dx = dx.reshape(x.shape[0], *x.shape[1:])
+    t = x.reshape(x.shape[0], -1)
 
     dw = t.T.dot(dout)
     db = np.sum(dout, axis=0)
@@ -89,7 +90,7 @@ def relu_forward(x):
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
     pass
-    out = np.where(x>0,x,0)
+    out = np.where(x > 0, x, 0)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -116,7 +117,7 @@ def relu_backward(dout, cache):
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
     pass
-    dx = np.where(x>0,dout,0)
+    dx = np.where(x > 0, dout, 0)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -148,14 +149,14 @@ def softmax_loss(x, y):
     pass
     num_train = x.shape[0]
     # x -= np.max(x, axis=1, keepdims=True)
-    correct_score = x[range(num_train),y]
+    correct_score = x[range(num_train), y]
     exp_sum = np.sum(np.exp(x), axis=1)
-    loss =  np.sum(np.log(exp_sum) - correct_score)
+    loss = np.sum(np.log(exp_sum) - correct_score)
     loss /= num_train
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     # 计算梯度
     margin = np.exp(x) / exp_sum.reshape(num_train, 1)
-    margin[np.arange(num_train), y] += -1   
+    margin[np.arange(num_train), y] += -1
     dx = margin
     dx /= num_train
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -235,8 +236,24 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        # pass
+        mean = np.mean(x, axis=0)
+        var = np.var(x, axis=0)
 
+        x_hat = (x - mean) / (np.sqrt(var + eps))
+        running_mean = momentum * running_mean + (1 - momentum) * mean
+        running_var = momentum * running_var + (1 - momentum) * var
+
+        out = gamma * x_hat + beta
+        cache = (x, x_hat, mean, var, gamma, eps)
+
+        # mean = np.mean(x, axis = 0, keepdims = True)
+        # var = np.var(x, axis = 0, keepdims = True)
+        # xnorm = (x - mean)/np.sqrt(var + eps)
+        # out = gamma*xnorm + beta
+        # running_mean = momentum*running_mean + (1 - momentum)*mean
+        # running_var = momentum*running_var + (1 - momentum)*var
+        # cache = [x, gamma, mean, var, eps]
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
         #                           END OF YOUR CODE                          #
@@ -249,7 +266,8 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # Store the result in the out variable.                               #
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+        x_hat = (x - running_mean) / (np.sqrt(running_var + eps))
+        out = gamma * x_hat + beta
         pass
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -297,7 +315,21 @@ def batchnorm_backward(dout, cache):
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
+    # x, gamma, eps = cache
+    x, x_hat, mean, var, gamma, eps = cache
 
+    N = x.shape[0]
+
+    dx_hat = dout * gamma
+    dvar = -0.5 * np.sum(dx_hat*(x-mean), axis=0) * np.power(var+eps, -1.5)
+
+    dmean = -np.sum(dx_hat/np.sqrt(var+eps), axis=0) - \
+        2*dvar*np.sum(x-mean, axis=0)/N
+
+    dx = dx_hat / np.sqrt(var+eps) + 2.0 * dvar * (x-mean)/N+dmean/N
+
+    dgamma = np.sum(x_hat*dout, axis=0)
+    dbeta = np.sum(dout, axis=0)
     return dx, dgamma, dbeta
 
 
@@ -324,7 +356,16 @@ def batchnorm_backward_alt(dout, cache):
     # single statement; our implementation fits on a single 80-character line.#
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    x, x_hat, mean, var, gamma, eps = cache
 
+
+    dx = gamma * ((var + eps) ** (-0.5)) * \
+         (dout - np.mean(dout, axis=0) - (x - mean) * np.mean((x - mean) * dout * (var + eps) ** (-1), axis=0))
+    
+    dgamma = np.sum(x_hat*dout, axis=0)
+    dbeta = np.sum(dout, axis=0)
+
+    
     pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -711,7 +752,7 @@ def spatial_batchnorm_backward(dout, cache):
 
 def spatial_groupnorm_forward(x, gamma, beta, G, gn_param):
     """Computes the forward pass for spatial group normalization.
-    
+
     In contrast to layer normalization, group normalization splits each entry in the data into G
     contiguous pieces, which it then normalizes independently. Per-feature shifting and scaling
     are then applied to the data, in a manner identical to that of batch normalization and layer

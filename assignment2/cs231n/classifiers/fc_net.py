@@ -1,5 +1,6 @@
 from builtins import range
 from builtins import object
+from xml.etree.ElementPath import xpath_tokenizer
 import numpy as np
 
 from ..layers import *
@@ -78,16 +79,18 @@ class FullyConnectedNet(object):
         for i in range(1, self.num_layers+1):
             if i==1:
                 self.params['W1'] = np.random.normal(loc=0.0,scale=1.0, size = (input_dim, hidden_dims[0])) * weight_scale
-                self.params['b1'] = np.zeros(hidden_dims[0])
+                self.params['b1'] = np.zeros(hidden_dims[i-1])
             elif i == self.num_layers:
                 self.params[f'W{i}'] = np.random.normal(loc=0.0,scale=1.0, size = (hidden_dims[i-2], num_classes)) * weight_scale
                 self.params[f'b{i}'] = np.zeros(num_classes)
+                break
             else:
                 self.params[f'W{i}'] = np.random.normal(loc=0.0,scale=1.0,size = (hidden_dims[i-2], hidden_dims[i-1])) * weight_scale
                 self.params[f'b{i}'] = np.zeros(hidden_dims[i-1])
-
+            if self.normalization != None:
+                self.params[f'gamma{i}'] = np.ones(hidden_dims[i-1])
+                self.params[f'beta{i}'] = np.zeros(hidden_dims[i-1])
         pass
-
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
         #                             END OF YOUR CODE                             #
@@ -160,15 +163,30 @@ class FullyConnectedNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        caches = []
-        relu_caches=[]
+        # caches = []
+        # relu_caches=[]
+        # for i in range(self.num_layers-1):
+        #     X, cache = affine_forward(X, self.params[f'W{i+1}'], self.params[f'b{i+1}'])
+        #     X, cache_relu = relu_forward(X)
+        #     caches.append(cache)
+        #     relu_caches.append(cache_relu)
+        # scores, cache = affine_forward(X, self.params[f'W{self.num_layers}'], self.params[f'b{self.num_layers}'])
+        # caches.append(cache)
+
+        caches = {}
         for i in range(self.num_layers-1):
-            X, cache = affine_forward(X, self.params[f'W{i+1}'], self.params[f'b{i+1}'])
-            X, cache_relu = relu_forward(X)
-            caches.append(cache)
-            relu_caches.append(cache_relu)
+            if self.normalization != None:
+                w, b, gamma, beta, bn_param = self.params[f'W{i+1}'], self.params[f'b{i+1}'],self.params[f'gamma{i+1}'],self.params[f'beta{i+1}'], self.bn_params[i]
+                X, cache = affine_bn_relu_forward(X, w, b, gamma, beta, bn_param)
+                caches[str(i+1)] = cache
+            else:
+                w, b = self.params[f'W{i+1}'], self.params[f'b{i+1}']
+                X, cache = affine_relu_forward(X, w, b,)
+                caches[str(i+1)] = cache
+
         scores, cache = affine_forward(X, self.params[f'W{self.num_layers}'], self.params[f'b{self.num_layers}'])
-        caches.append(cache)
+        caches[str(self.num_layers)] = cache
+        
         pass
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -200,21 +218,38 @@ class FullyConnectedNet(object):
         for i in range(1, self.num_layers + 1):
             loss += 0.5 * self.reg * (np.sum(self.params[f'W{i}']*self.params[f'W{i}']))
         ## grad
-        for i in range(1, self.num_layers):
-            grad_num = self.num_layers + 1 - i
-            dx, dw, db = affine_backward(dx, caches[-i])  
-            grads[f'W{grad_num}'] = dw + self.reg * self.params[f'W{grad_num}']
-            grads[f'b{grad_num}'] = db 
-            dx = relu_backward(dx, relu_caches[-i])
+        # for i in range(1, self.num_layers):
+        #     grad_num = self.num_layers + 1 - i
+        #     dx, dw, db = affine_backward(dx, caches[-i])  
+        #     grads[f'W{grad_num}'] = dw + self.reg * self.params[f'W{grad_num}']
+        #     grads[f'b{grad_num}'] = db 
+        #     dx = relu_backward(dx, relu_caches[-i])
+        # dx, dw, db = affine_backward(dx, caches[0])  
+        # grads['W1'] = dw + self.reg * self.params['W1']
+        # grads['b1'] = db 
 
-        dx, dw, db = affine_backward(dx, caches[0])  
-        grads['W1'] = dw + self.reg * self.params['W1']
-        grads['b1'] = db 
+        dx, dw, db = affine_backward(dx, cache)  
+        grads[f'W{self.num_layers}'] = dw + self.reg * self.params[f'W{self.num_layers}']
+        grads[f'b{self.num_layers}'] = db 
+        for i in range(self.num_layers-1, 0, -1):
+            if self.normalization != None:
+                dx, dw, db, dgamma, dbeta = affine_bn_relu_backward(dx, caches[str(i)])
+                grads[f'W{i}'] = dw + self.reg * self.params[f'W{i}']
+                grads[f'b{i}'] = db 
+                grads[f'gamma{i}'] = dgamma 
+                grads[f'beta{i}'] = dbeta 
+            else:
+                dx, dw, db,= affine_relu_backward(dx, caches[str(i)])
+                grads[f'W{i}'] = dw + self.reg * self.params[f'W{i}']
+                grads[f'b{i}'] = db 
+
         pass
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
-
         return loss, grads
+
+    def print_network(self):
+        print(self.params)
